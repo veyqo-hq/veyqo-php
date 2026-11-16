@@ -35,7 +35,7 @@
         "test": "phpunit"
     },
     "support": {
-        "issues": "https://github.com/coder-frank/veyqo-php/issues",
-        "source": "https://github.com/coder-frank/veyqo-php"
+        "issues": "https://github.com/veyqo-hq/veyqo-php/issues",
+        "source": "https://github.com/veyqo-hq/veyqo-php"
     }
 }
