@@ -48,6 +48,25 @@ final class VeyqoTest extends TestCase
         $this->assertSame($seen[0]['headers']['Idempotency-Key'], $seen[1]['headers']['Idempotency-Key']);
     }
 
+    public function test_transfers_list_banks_resolve_and_send(): void
+    {
+        $seen = [];
+        $client = $this->client([
+            [200, ['success' => true, 'data' => [['id' => '000013', 'name' => 'GTBank', 'providers' => ['paystack']]]]],
+            [200, ['success' => true, 'data' => ['account_name' => 'ADA LOVELACE']]],
+            [201, ['success' => true, 'data' => ['id' => 'trf_1', 'status' => 'pending']]],
+            [200, ['success' => true, 'data' => ['id' => 'csub_1']]],
+        ], $seen);
+
+        $this->assertSame('000013', $client->transfers->banks('paystack')[0]['id']);
+        $this->assertStringEndsWith('/transfers/banks?provider=paystack', $seen[0]['url']);
+        $this->assertSame('ADA LOVELACE', $client->transfers->resolve(['bank' => '000013', 'account_number' => '0123456789'])['account_name']);
+        $this->assertSame('trf_1', $client->transfers->create(['amount' => 500000, 'bank' => '000013', 'account_number' => '0123456789'])['id']);
+        $this->assertNotEmpty($seen[2]['headers']['Idempotency-Key']);
+        $client->subscriptions->changePlan('csub_1', ['plan' => 'rplan_2', 'at_period_end' => false]);
+        $this->assertStringEndsWith('/subscriptions/csub_1/plan', $seen[3]['url']);
+    }
+
     public function test_webhooks_verify_and_reject(): void
     {
         $body = json_encode(['id' => 'evt_1', 'type' => 'payment.succeeded']);

@@ -12,7 +12,7 @@ namespace Veyqo;
  */
 final class Veyqo
 {
-    public const VERSION = '0.1.1';
+    public const VERSION = '0.2.0';
 
     public readonly Resource $payments;
 
@@ -25,6 +25,8 @@ final class Veyqo
     public readonly Resource $subscriptions;
 
     public readonly Resource $events;
+
+    public readonly Transfers $transfers;
 
     private string $baseUrl;
 
@@ -46,8 +48,9 @@ final class Veyqo
         $this->refunds = new Resource($this, '/refunds');
         $this->checkoutSessions = new Resource($this, '/checkout/sessions');
         $this->plans = new Resource($this, '/plans');
-        $this->subscriptions = new Resource($this, '/subscriptions', ['cancel' => ['POST', '/{id}/cancel']]);
+        $this->subscriptions = new Resource($this, '/subscriptions', ['cancel' => ['POST', '/{id}/cancel'], 'changePlan' => ['POST', '/{id}/plan']]);
         $this->events = new Resource($this, '/events');
+        $this->transfers = new Transfers($this);
     }
 
     /**
