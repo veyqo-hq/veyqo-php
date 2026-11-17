@@ -39,6 +39,34 @@ $transfer = $veyqo->transfers->create([
 // $transfer['status']: successful, failed or pending (then transfer.successful / transfer.failed webhooks)
 ```
 
+### Itemised checkout with tax
+
+```php
+$payment = $veyqo->payments->create([
+    'amount' => 38400, // line items + shipping, in cents
+    'currency' => 'CAD',
+    'provider' => 'stripe',
+    'reference' => 'ORDER-1001',
+    'customer' => ['email' => 'buyer@example.ca', 'name' => 'Ada Buyer'],
+    'line_items' => [
+        ['name' => 'Sole Pod', 'unit_amount' => 19900],
+        ['name' => 'Re-Up', 'unit_amount' => 15000, 'quantity' => 1],
+    ],
+    'shipping' => [
+        'name' => 'Ada Buyer',
+        'amount' => 3500, // charged and taxed as shipping
+        'label' => 'Standard shipping',
+        'address' => ['line1' => '1 King St W', 'city' => 'Toronto', 'state' => 'ON', 'postal_code' => 'M5H 1A1', 'country' => 'CA'],
+    ],
+    'tax' => ['automatic' => true], // Stripe adds GST/HST/sales tax at checkout
+    'callback_url' => 'https://shop.example.com/thanks',
+]);
+// once paid: $payment['amount'] is the total, $payment['amount_tax'] the tax,
+// $payment['risk'] Stripe Radar's assessment ('review' => true means look before shipping)
+
+$veyqo->payments->cancel($payment['id']); // order cancelled: close the checkout
+```
+
 ## Webhooks
 
 ```php
