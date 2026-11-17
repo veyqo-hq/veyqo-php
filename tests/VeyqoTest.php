@@ -67,6 +67,15 @@ final class VeyqoTest extends TestCase
         $this->assertStringEndsWith('/subscriptions/csub_1/plan', $seen[3]['url']);
     }
 
+    public function test_a_payment_can_be_cancelled(): void
+    {
+        $seen = [];
+        $payment = $this->client([[200, ['success' => true, 'data' => ['id' => 'pay_1', 'status' => 'cancelled']]]], $seen)->payments->cancel('pay_1');
+        $this->assertSame('cancelled', $payment['status']);
+        $this->assertSame('POST', $seen[0]['method']);
+        $this->assertStringEndsWith('/payments/pay_1/cancel', $seen[0]['url']);
+    }
+
     public function test_webhooks_verify_and_reject(): void
     {
         $body = json_encode(['id' => 'evt_1', 'type' => 'payment.succeeded']);

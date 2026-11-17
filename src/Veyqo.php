@@ -12,7 +12,7 @@ namespace Veyqo;
  */
 final class Veyqo
 {
-    public const VERSION = '0.2.0';
+    public const VERSION = '0.3.0';
 
     public readonly Resource $payments;
 
@@ -44,7 +44,7 @@ final class Veyqo
         $this->baseUrl = rtrim($options['base_url'] ?? 'https://api.veyqo.org/api/v1', '/');
         $this->transport = $options['transport'] ?? $this->curl(...);
 
-        $this->payments = new Resource($this, '/payments', ['refund' => ['POST', '/{id}/refunds'], 'verify' => ['POST', '/{id}/verify']]);
+        $this->payments = new Resource($this, '/payments', ['refund' => ['POST', '/{id}/refunds'], 'verify' => ['POST', '/{id}/verify'], 'cancel' => ['POST', '/{id}/cancel']]);
         $this->refunds = new Resource($this, '/refunds');
         $this->checkoutSessions = new Resource($this, '/checkout/sessions');
         $this->plans = new Resource($this, '/plans');
