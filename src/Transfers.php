@@ -55,4 +55,21 @@ final class Transfers
     {
         return $this->client->request('GET', '/transfers/'.rawurlencode($id));
     }
+
+    /**
+     * Up to 200 transfers sent one by one in the background (payroll, vendor
+     * payouts). The batch reference is required: the same one twice is refused.
+     *
+     * @param  array{reference: string, provider?: string, transfers: list<array<string, mixed>>}  $params
+     */
+    public function createBatch(array $params, ?string $idempotencyKey = null): mixed
+    {
+        return $this->client->request('POST', '/transfers/batches', $params, [], $idempotencyKey);
+    }
+
+    /** Its status (queued, sending, done), counts, and each transfer's outcome. */
+    public function retrieveBatch(string $id): mixed
+    {
+        return $this->client->request('GET', '/transfers/batches/'.rawurlencode($id));
+    }
 }

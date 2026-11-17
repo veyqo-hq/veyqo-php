@@ -12,7 +12,7 @@ namespace Veyqo;
  */
 final class Veyqo
 {
-    public const VERSION = '0.3.1';
+    public const VERSION = '0.4.0';
 
     public readonly Resource $payments;
 
@@ -27,6 +27,18 @@ final class Veyqo
     public readonly Resource $events;
 
     public readonly Transfers $transfers;
+
+    /** What each connected provider account holds: ->all(). */
+    public readonly Resource $balances;
+
+    /** Saved bank accounts: create, all, delete($id). Pay one with transfers->create(['beneficiary' => …]). */
+    public readonly Resource $beneficiaries;
+
+    /** A permanent account number per customer: create, all, retrieve (id or your reference). */
+    public readonly Resource $virtualAccounts;
+
+    /** Who can take a share of a payment (payments->create([... 'split' => …])): create, all, retrieve. */
+    public readonly Resource $splitRecipients;
 
     private string $baseUrl;
 
@@ -51,6 +63,10 @@ final class Veyqo
         $this->subscriptions = new Resource($this, '/subscriptions', ['cancel' => ['POST', '/{id}/cancel'], 'changePlan' => ['POST', '/{id}/plan']]);
         $this->events = new Resource($this, '/events');
         $this->transfers = new Transfers($this);
+        $this->balances = new Resource($this, '/balances');
+        $this->beneficiaries = new Resource($this, '/beneficiaries', ['delete' => ['DELETE', '/{id}']]);
+        $this->virtualAccounts = new Resource($this, '/virtual-accounts');
+        $this->splitRecipients = new Resource($this, '/split-recipients');
     }
 
     /**

@@ -39,6 +39,52 @@ $transfer = $veyqo->transfers->create([
 // $transfer['status']: successful, failed or pending (then transfer.successful / transfer.failed webhooks)
 ```
 
+### Saved accounts, batches and balances
+
+```php
+$balances = $veyqo->balances->all();
+
+// Save an account once (name-checked), then pay it by id
+$ada = $veyqo->beneficiaries->create(['bank' => '000013', 'account_number' => '0123456789', 'label' => 'Ada, supplier']);
+$veyqo->transfers->create(['amount' => 250000, 'beneficiary' => $ada['id'], 'reference' => 'INV-88']);
+
+// Payroll: up to 200 transfers, sent in the background
+$batch = $veyqo->transfers->createBatch([
+    'reference' => 'PAYROLL-2026-11',
+    'transfers' => [
+        ['amount' => 450000, 'bank' => '000013', 'account_number' => '0123456789', 'narration' => 'November salary'],
+        ['amount' => 380000, 'bank' => '000014', 'account_number' => '9876543210', 'narration' => 'November salary'],
+    ],
+]);
+// later: $veyqo->transfers->retrieveBatch($batch['id'])['progress']
+```
+
+A transfer at or above your organization's approval limit comes back as `awaiting_approval`. It is sent once an owner or admin approves it in the dashboard, or rejected after 7 days.
+
+### Virtual accounts
+
+```php
+$account = $veyqo->virtualAccounts->create([
+    'customer' => ['email' => 'ada@example.com', 'name' => 'Ada Obi'], // Flutterwave also needs bvn
+    'reference' => 'CUSTOMER-42',
+    'metadata' => ['customer_id' => '42'],
+]);
+// Show $account['account_number'] and $account['bank_name'] to the customer.
+// Each confirmed deposit arrives as payment.succeeded with metadata.virtual_account_id.
+```
+
+### Split payments
+
+```php
+$seller = $veyqo->splitRecipients->create(['name' => 'Ada Obi Stores', 'bank' => '000013', 'account_number' => '0123456789', 'reference' => 'SELLER-7']);
+$payment = $veyqo->payments->create([
+    'amount' => 1000000,
+    'currency' => 'NGN',
+    'customer' => ['email' => 'buyer@example.com'],
+    'split' => [['recipient' => $seller['id'], 'amount' => 850000]], // the seller gets 8,500; the rest is yours
+]);
+```
+
 ### Itemised checkout with tax
 
 ```php

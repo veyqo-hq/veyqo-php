@@ -89,4 +89,46 @@ final class VeyqoTest extends TestCase
         $this->expectException(SignatureException::class);
         Webhook::verify($body, $headers, 'wrong');
     }
+
+    public function test_balances_beneficiaries_batches_virtual_accounts_and_split_recipients(): void
+    {
+        $seen = [];
+        $ok = fn (array $data, int $status = 200) => [$status, ['success' => true, 'data' => $data]];
+        $client = $this->client([
+            $ok([['provider' => 'paystack']]),
+            $ok(['id' => 'ben_1'], 201),
+            $ok(['id' => 'ben_1', 'deleted' => true]),
+            $ok(['id' => 'tbat_1'], 201),
+            $ok(['id' => 'tbat_1', 'status' => 'done']),
+            $ok(['id' => 'va_1', 'account_number' => '9930000001'], 201),
+            $ok(['id' => 'va_1']),
+            $ok(['id' => 'spr_1'], 201),
+            $ok(['id' => 'pay_1'], 201),
+        ], $seen);
+
+        $this->assertSame('paystack', $client->balances->all()[0]['provider']);
+        $client->beneficiaries->create(['bank' => '000013', 'account_number' => '0123456789']);
+        $this->assertTrue($client->beneficiaries->delete('ben_1')['deleted']);
+        $client->transfers->createBatch(['reference' => 'PAYROLL', 'transfers' => [['amount' => 100000, 'bank' => '000013', 'account_number' => '0123456789']]]);
+        $this->assertSame('done', $client->transfers->retrieveBatch('tbat_1')['status']);
+        $this->assertSame('9930000001', $client->virtualAccounts->create(['customer' => ['email' => 'ada@example.com']])['account_number']);
+        $client->virtualAccounts->retrieve('CUST 42');
+        $client->splitRecipients->create(['name' => 'Ada Stores', 'bank' => '000013', 'account_number' => '0123456789']);
+        $client->payments->create(['amount' => 1000000, 'currency' => 'NGN', 'split' => [['recipient' => 'spr_1', 'amount' => 250000]]]);
+
+        $calls = array_map(fn (array $c): string => $c['method'].' '.parse_url($c['url'], PHP_URL_PATH), $seen);
+        $this->assertSame([
+            'GET /api/v1/balances',
+            'POST /api/v1/beneficiaries',
+            'DELETE /api/v1/beneficiaries/ben_1',
+            'POST /api/v1/transfers/batches',
+            'GET /api/v1/transfers/batches/tbat_1',
+            'POST /api/v1/virtual-accounts',
+            'GET /api/v1/virtual-accounts/CUST%2042',
+            'POST /api/v1/split-recipients',
+            'POST /api/v1/payments',
+        ], $calls);
+        $this->assertArrayNotHasKey('Idempotency-Key', $seen[2]['headers']);
+        $this->assertSame([['recipient' => 'spr_1', 'amount' => 250000]], json_decode((string) $seen[8]['body'], true)['split']);
+    }
 }
