@@ -73,6 +73,33 @@ $account = $veyqo->virtualAccounts->create([
 // Each confirmed deposit arrives as payment.succeeded with metadata.virtual_account_id.
 ```
 
+
+### Cards
+
+Virtual cards on Sudo, decided in real time. On your own Sudo programme every
+payment is asked of your authorization endpoint: hold the amount (never just
+read a balance) and answer within about 1.5 seconds.
+
+```php
+$holder = $veyqo->cardholders->create([
+    'first_name' => 'Ada', 'last_name' => 'Obi',
+    'identity' => ['type' => 'BVN', 'number' => '22222222222'], // passed to Sudo, never stored by Veyqo
+    'billing_address' => ['line1' => '1 Marina', 'city' => 'Lagos', 'state' => 'Lagos', 'postal_code' => '100001', 'country' => 'NG'],
+]);
+$card = $veyqo->cards->create(['cardholder' => $holder['id'], 'brand' => 'Verve', 'currency' => 'NGN']);
+$veyqo->cards->update($card['id'], ['status' => 'inactive']); // freeze at once
+```
+
+```php
+use Veyqo\CardAuthorization;
+
+$request = CardAuthorization::verify(file_get_contents('php://input'), getallheaders(), getenv('VEYQO_CARD_SECRET'));
+$hold = $wallets->hold($request['data']['card']['metadata']['user_id'], $request['data']['authorization']['amount'], $request['id']);
+header('Content-Type: application/json');
+echo json_encode($hold ? CardAuthorization::response(true, $hold->id) : CardAuthorization::response(false, null, 'insufficient_funds'));
+// Release the hold on card.authorization.declined; settle it on card.transaction.created.
+```
+
 ### Split payments
 
 ```php

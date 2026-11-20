@@ -131,4 +131,38 @@ final class VeyqoTest extends TestCase
         $this->assertArrayNotHasKey('Idempotency-Key', $seen[2]['headers']);
         $this->assertSame([['recipient' => 'spr_1', 'amount' => 250000]], json_decode((string) $seen[8]['body'], true)['split']);
     }
+
+    public function test_cards_issue_freeze_cancel_and_reveal_on_the_right_endpoints(): void
+    {
+        $seen = [];
+        $ok = fn (array $data): array => [200, ['success' => true, 'data' => $data]];
+        $client = $this->client([$ok(['id' => 'ch_1']), $ok(['id' => 'card_1', 'last4' => '4321']), $ok(['status' => 'inactive']), $ok(['status' => 'canceled']), $ok(['token' => 't']), $ok(['balances' => []]), $ok(['signing_secret' => 'whsec_x'])], $seen);
+
+        $client->cardholders->create(['first_name' => 'Ada', 'last_name' => 'Obi']);
+        $this->assertSame('4321', $client->cards->create(['cardholder' => 'ch_1', 'brand' => 'Verve', 'currency' => 'NGN'])['last4']);
+        $client->cards->update('card_1', ['status' => 'inactive']);
+        $client->cards->cancel('card_1', ['reason' => 'lost']);
+        $client->cards->revealToken('card_1');
+        $client->cardBalance->retrieve();
+        $client->cardProgrammes->setAuthorizationEndpoint('imported', 'https://example.com/authorize');
+
+        $this->assertSame(['POST /cardholders', 'POST /cards', 'PATCH /cards/card_1', 'POST /cards/card_1/cancel', 'POST /cards/card_1/reveal-token', 'GET /card-balance', 'PUT /card-programmes/imported/authorization-endpoint'],
+            array_map(fn (array $s): string => $s['method'].' '.substr((string) parse_url($s['url'], PHP_URL_PATH), strlen('/api/v1')), $seen));
+        $this->assertSame('lost', json_decode((string) $seen[3]['body'], true)['reason']);
+    }
+
+    public function test_a_card_authorization_request_is_verified_and_answered(): void
+    {
+        $body = json_encode(['id' => 'cauth_1', 'type' => 'card.authorization.request', 'data' => ['authorization' => ['amount' => 25000]]]);
+        $timestamp = time();
+        $headers = ['Veyqo-Timestamp' => (string) $timestamp, 'Veyqo-Signature' => hash_hmac('sha256', $timestamp.'.'.$body, 'whsec_card')];
+
+        $this->assertSame(25000, \Veyqo\CardAuthorization::verify((string) $body, $headers, 'whsec_card')['data']['authorization']['amount']);
+        $this->assertSame(['approved' => true, 'reference' => 'hold_1'], \Veyqo\CardAuthorization::response(true, 'hold_1'));
+        $this->assertSame(['approved' => false, 'decline_reason' => 'insufficient_funds'], \Veyqo\CardAuthorization::response(false, null, 'insufficient_funds'));
+
+        $other = json_encode(['id' => 'evt_1', 'type' => 'payment.succeeded']);
+        $this->expectException(SignatureException::class);
+        \Veyqo\CardAuthorization::verify((string) $other, ['Veyqo-Timestamp' => (string) $timestamp, 'Veyqo-Signature' => hash_hmac('sha256', $timestamp.'.'.$other, 'whsec_card')], 'whsec_card');
+    }
 }

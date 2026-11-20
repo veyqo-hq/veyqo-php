@@ -12,7 +12,7 @@ namespace Veyqo;
  */
 final class Veyqo
 {
-    public const VERSION = '0.4.0';
+    public const VERSION = '0.5.0';
 
     public readonly Resource $payments;
 
@@ -39,6 +39,22 @@ final class Veyqo
 
     /** Who can take a share of a payment (payments->create([... 'split' => …])): create, all, retrieve. */
     public readonly Resource $splitRecipients;
+
+    /** People cards are issued to: create, all, retrieve (id or your reference). */
+    public readonly Resource $cardholders;
+
+    /** Virtual cards: create, all, retrieve, update ($id, ['status' => 'inactive']), cancel($id, ['reason' => 'lost']), revealToken($id), simulateAuthorization($id, [...]) in sandbox. */
+    public readonly Resource $cards;
+
+    /** Real-time decisions: all, retrieve, simulateReversal($id) in sandbox. */
+    public readonly Resource $cardAuthorizations;
+
+    /** Captures and refunds as the issuer confirmed them: all, retrieve. */
+    public readonly Resource $cardTransactions;
+
+    public readonly CardBalance $cardBalance;
+
+    public readonly CardProgrammes $cardProgrammes;
 
     private string $baseUrl;
 
@@ -67,6 +83,12 @@ final class Veyqo
         $this->beneficiaries = new Resource($this, '/beneficiaries', ['delete' => ['DELETE', '/{id}']]);
         $this->virtualAccounts = new Resource($this, '/virtual-accounts');
         $this->splitRecipients = new Resource($this, '/split-recipients');
+        $this->cardholders = new Resource($this, '/cardholders');
+        $this->cards = new Resource($this, '/cards', ['cancel' => ['POST', '/{id}/cancel'], 'revealToken' => ['POST', '/{id}/reveal-token'], 'simulateAuthorization' => ['POST', '/{id}/simulate-authorization']]);
+        $this->cardAuthorizations = new Resource($this, '/card-authorizations', ['simulateReversal' => ['POST', '/{id}/simulate-reversal']]);
+        $this->cardTransactions = new Resource($this, '/card-transactions');
+        $this->cardBalance = new CardBalance($this);
+        $this->cardProgrammes = new CardProgrammes($this);
     }
 
     /**
